@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import json
+import os
 import random
 from typing import List, Optional
 from pathlib import Path
@@ -33,21 +34,9 @@ class Image(BaseModel):
 
 # Загрузка данных из JSON
 def load_images():
-    with open("images.json", "r") as f:
-        data = json.load(f)
-    return data["images"]
-
-# Сохранение данных в JSON
-def save_images(images):
-    with open("images.json", "w") as f:
-        json.dump({"images": images}, f, indent=2)
-
-# Проверка существования файлов
-def validate_image_paths(images):
-    for image in images:
-        if not Path(image["path"]).is_file():
-            raise HTTPException(status_code=500, detail=f"Image file {image['path']} not found")
-    return images
+    folder_path = "images"
+    print(os.getcwd())
+    return [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
 
 @app.get("/get", response_model=List[Image])
 async def get_images(description: Optional[str] = None):
@@ -68,17 +57,18 @@ async def get_images(description: Optional[str] = None):
     ]
 
 @app.get("/image/{id}")
-async def get_image(id: int):
+async def get_image(id: str):
     # Загружаем изображения
     images = load_images()
-    
-    # Ищем изображение по ID
-    for image in images:
-        if image["id"] == id:
-            image_path = Path(image["path"])
+    ids = [os.path.splitext(f)[0] for f in images]
+    print(ids)
+    for cur_id in ids:
+        if id == cur_id:
+            image_path = Path("images/" + cur_id + ".jpeg")
             if image_path.is_file():
                 return FileResponse(image_path)
             else:
-                raise HTTPException(status_code=404, detail=f"Image file {image['path']} not found")
+                raise HTTPException(status_code=404, detail=f"Image file not found")
     
+    # Ищем изображение по ID
     raise HTTPException(status_code=404, detail="Image with specified ID not found")
